@@ -6,7 +6,13 @@ import pandas as pd
 
 
 # still produces duplicates
-def _process_tag(tag, data_dict):
+def _process_tag(tag, data_dict, processed_tags):
+    tag_id = id(tag)
+    if tag_id in processed_tags:
+        return
+    
+    processed_tags.add(tag_id)
+    
     tag_name = 'P' if tag.name.startswith('P') else tag.name
 
     if not re.match(r'(TEI|text|T\d+|U\d+)', tag_name):
@@ -14,11 +20,12 @@ def _process_tag(tag, data_dict):
             data_dict[tag_name] = []
 
         text = ' '.join(tag.text.strip().split())
+
         data_dict[tag_name].append(text)
 
     children = tag.find_all(recursive=False)
     for child in children:
-        _process_tag(child, data_dict)
+        _process_tag(child, data_dict, processed_tags)
         
 
 def load_data(xml_path):
@@ -44,10 +51,13 @@ def load_data(xml_path):
 
     data_dict = {}
     print(f'len(soup.find_all()): {len(soup.find_all())}')
+
+    processed_tags = set()
     for tag in soup.find_all():
-        _process_tag(tag, data_dict)
+        _process_tag(tag, data_dict, processed_tags)
 
     print(f'len(data_dict): {len(data_dict)}')
+    print(f'processed_tags: {len(processed_tags)}')
 
     # pad shorter lists in data_defaultdict with None
     max_len = max(len(lst) for lst in data_dict.values())
