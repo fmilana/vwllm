@@ -1,50 +1,37 @@
 # https://huggingface.co/docs/transformers/en/training
-import numpy as np
-import evaluate
 from datasets import load_dataset
-from transformers import BertConfig, AutoTokenizer, TrainingArguments, Trainer
-from span_marker import SpanMarkerModel
+from transformers import TrainingArguments, Trainer, AutoModelForTokenClassification 
 
 
-def tokenize_function(examples, tokenizer):
-    return tokenizer(examples["text"], padding="max_length", truncation=True)
+ELEMENT_TAG = 'SC'
 
+model_name = 'google-bert/bert-base-uncased'
 
-def compute_metrics(eval_pred):
-    logits, labels = eval_pred
-    predictions = np.argmax(logits, axis=-1)
-    metric = evaluate.load("accuracy")
-    return metric.compute(predictions=predictions, references=labels)
+train_dataset_path = f'data/tokenized_train_dataset_{ELEMENT_TAG}.hf/data-00000-of-00001.arrow'
+test_dataset_path = f'data/tokenized_test_dataset_{ELEMENT_TAG}.hf/data-00000-of-00001.arrow'
 
+dataset = load_dataset('arrow', data_files={'train': train_dataset_path, 'test': test_dataset_path})
 
-# model_name = "compnet-renard/bert-base-cased-literary-NER"
+model = AutoModelForTokenClassification.from_pretrained(model_name, num_labels=3)
 
-# tokenizer = AutoTokenizer.from_pretrained(model_name)
+training_args = TrainingArguments(
+    output_dir='checkpoints', 
+    num_train_epochs=3,
+    per_device_train_batch_size=8,
+    per_device_eval_batch_size=8,
+    warmup_steps=500,
+    weight_decay=0.01,
+    evaluation_strategy='epoch'
+)
 
-# model = SpanMarkerModel.from_pretrained(model_name)
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=dataset['train'],
+    eval_dataset=dataset['test']
+)
 
-# dataset = load_dataset("data/Tagged ST VW 1927.csv")
+trainer.train()
 
-# tokenized_datasets = dataset.map(tokenize_function, batched=True)
-
-# small_train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(1000))
-# small_eval_dataset = tokenized_datasets["test"].shuffle(seed=42).select(range(1000))
-
-# training_args = TrainingArguments(output_dir="checkpoints", evaluation_strategy="epoch")
-
-# trainer = Trainer(
-#     model=model,
-#     args=training_args,
-#     train_dataset=small_train_dataset,
-#     eval_dataset=small_eval_dataset,
-#     compute_metrics=compute_metrics,
-# )
-
-# trainer.train()
-
-
-# dataset = load_dataset("data/Tagged ST VW 1927.csv")
-
-# labels = [label for example in dataset["train"]["labels"] for label in example]
-
-# num_labels = len(set(labels))
+results = trainer.evaluate()
+print(results)
