@@ -1,2 +1,7 @@
 .vscode/
 .DS_Store
+checkpoints/
+data/*
+!data/Tagged ST VW 1927.xml
+!data/Tagged ST VW 1927_all_data.csv
+!data/tag_names.txt
