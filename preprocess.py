@@ -47,8 +47,8 @@ def _process_element(element, paragraph_id, result_list, inside=False):
             result_list.append({'paragraph_id': paragraph_id, 'word': word, 'iob_tag': 'O'})
             
 
-def _tokenize_and_preserve_labels(batch, label_all_tokens=True):
-    tokenized_inputs = tokenizer(batch['paragraph'], truncation=True, padding=True)
+def _tokenize_and_preserve_labels(batch):
+    tokenized_inputs = tokenizer(batch['paragraph'], padding=True, truncation=True)
 
     label_ids_list = [] 
     for i, word_labels in enumerate(batch['word_labels']):
@@ -56,20 +56,14 @@ def _tokenize_and_preserve_labels(batch, label_all_tokens=True):
         word_labels = word_labels.split(',')
         
         label_ids = []
-        previous_word_idx = None
+
         for word_idx in word_ids:
             if word_idx is None:
                 label_ids.append(-100)
             else:
                 label = word_labels[word_idx] if word_idx < len(word_labels) else 'O'  # Default to 'O' or another default label
                 label_id = label2id[label]
-                # If label_all_tokens is True OR this token is the first token of a word, assign the actual label ID
-                if label_all_tokens or word_idx != previous_word_idx:
-                    label_ids.append(label_id)
-                # Otherwise, if it's a subsequent token of a word and label_all_tokens is False, set its label to -100
-                else:
-                    label_ids.append(-100)
-            previous_word_idx = word_idx
+                label_ids.append(label_id)
 
         label_ids_list.append(label_ids)  # Append the list of label IDs for this sentence to the overall list
 
@@ -119,8 +113,8 @@ model_name = "google-bert/bert-base-uncased"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 print('Tokenizing and encoding...')
-tokenized_train_dataset = train_dataset.map(_tokenize_and_preserve_labels, batched=True)
-tokenized_test_dataset = test_dataset.map(_tokenize_and_preserve_labels, batched=True)
+tokenized_train_dataset = train_dataset.map(_tokenize_and_preserve_labels, batched=True, batch_size=None)
+tokenized_test_dataset = test_dataset.map(_tokenize_and_preserve_labels, batched=True, batch_size=None)
 
 tokenized_train_dataset.save_to_disk(f'data/tokenized_train_dataset_{ELEMENT_TAG}.hf')
 tokenized_test_dataset.save_to_disk(f'data/tokenized_test_dataset_{ELEMENT_TAG}.hf')
